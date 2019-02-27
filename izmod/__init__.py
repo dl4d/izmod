@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from izmod import dataset
-from izmod import archi
+from . import dataset
+from . import archi
 
 __version__ = "0.1"
