@@ -32,8 +32,6 @@ class iz_image_dataset:
 
         X         = None
         y         = None
-        X_test    = None
-        y_test    = None
         synsets   = None
         path      = None
         path_target = None
@@ -41,7 +39,14 @@ class iz_image_dataset:
         type      = None
         name      = "NoName"
         date_creation = None
-        test_split = None
+        X_   = None
+        X_test    = None
+        y_   = None
+        y_test   = None
+        X_scalers = []    #data scalers for X
+        X_scalers_type =None
+        y_scalers = []    #data scalers for y
+        y_scalers_type =None
 
         if parameters is not None:
 
@@ -113,6 +118,24 @@ class iz_image_dataset:
                 print("| [For Testing ]  Number of images  | ", self.X_test.shape[0])
         else:
                 print("| IZ Split : False")
+        print("|----------------------------------------------------")
+        print("| ¤¤¤¤¤¤¤¤¤    IZ Image Dataset Scaling     ¤¤¤¤¤¤¤¤¤  ")
+        print("|----------------------------------------------------")
+        if hasattr(self,"X_scalers") or hasattr(self,"y_scalers"):
+            print("| IZ Scaling : True")
+            if hasattr(self,"X_scalers"):
+                print("|----------------------------------------------------")
+                print("| Images Scaler                     | ", self.X_scalers_type)
+                print("| [For Training] MinMax intensity   | [", self.X_.min(),",",self.X_.max(),"]")
+            else:
+                print("| Images Scaler                     |  No scaling");
+            if hasattr(self,"y_scalers"):
+                print("| [For Training] Class Transformer  | ", self.y_scalers_type)
+            else:
+                print("| Class Transformer                 |  No scaling");
+        else:
+                print("| IZ Scaling : False")
+        print("|----------------------------------------------------")
 
         print("\n")
 
@@ -140,6 +163,36 @@ class iz_image_dataset:
         print("| Image BitDepths                | ", self.get_bitdepth(self.X))
         print("| Target BitDepths               | ", self.get_bitdepth(self.y))
         print("|----------------------------------------------------")
+        print("|----------------------------------------------------")
+        print("| ¤¤¤¤¤¤¤¤¤   IZ Image Dataset Splitting    ¤¤¤¤¤¤¤¤¤  ")
+        print("|----------------------------------------------------")
+        if hasattr(self,"X_"):
+                print("| IZ Split : True")
+                print("|----------------------------------------------------")
+                print("| [For Training] Number of images   | ", self.X_.shape[0])
+                print("| [For Testing ]  Number of images  | ", self.X_test.shape[0])
+        else:
+                print("| IZ Split : False")
+        print("|----------------------------------------------------")
+        print("| ¤¤¤¤¤¤¤¤¤    IZ Image Dataset Scaling     ¤¤¤¤¤¤¤¤¤  ")
+        print("|----------------------------------------------------")
+        if hasattr(self,"X_scalers") or hasattr(self,"y_scalers"):
+            print("| IZ Scaling : True")
+            if hasattr(self,"X_scalers"):
+                print("|----------------------------------------------------")
+                print("| Images Scaler                     | ", self.X_scalers_type)
+                print("| [For Training] MinMax intensity   | [", self.X_.min(),",",self.X_.max(),"]")
+            else:
+                print("| Images Scaler                     |  No scaling");
+            if hasattr(self,"y_scalers"):
+                print("| Targets Scalers                   | ", self.y_scalers_type)
+                print("| [For Training] MinMax intensity   | [", self.y_.min(),",",self.y_.max(),"]")
+            else:
+                print("| Targets Scalers                   |  No scaling");
+        else:
+                print("| IZ Scaling : False")
+        print("|----------------------------------------------------")
+
 
         print("\n")
 
@@ -286,6 +339,76 @@ class iz_image_dataset:
         self.date_creation = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
+    def split(self,test=None, random_state = 42):
+
+        train = 1.0 - test
+        (self.X_,self.X_test,self.y_,self.y_test) = train_test_split(self.X,self.y,test_size=test,random_state=random_state)
+
+    def preprocess(self,images=None,targets=None):
+
+        if not hasattr(self,"X_"):
+            print('Error! IZ preprocess: you must split your dataset before preprocessing. Please use "iz_split" function before !')
+            return
+
+        if images is not None:
+            if images.lower()=="categorical":
+                print('Error! IZ preprocess: Categorical preprocessing should be used only with class/labels not images')
+                return
+            if images.lower()=="standard":
+                self.X_,self.X_scalers = self.standard_scaling(self.X_)
+            if images.lower()=="minmax":
+                self.X_,self.X_scalers = self.minmax_scaling(self.X_)
+
+            self.X_scalers_type = images
+
+        if targets is not None:
+            if targets.lower()=="categorical":
+                if (self.type=="segmentation") or (self.type=="encoder"):
+                    print('Error: IZ preprocess : Categorical preprocessing should be used only on class/labels of classification type dataset')
+                    return
+                self.y_,self.y_scalers = self.categorical_transform(self.y_)
+            if targets.lower()=="standard":
+                if (self.type=="classification"):
+                    print('Error: IZ preprocess : Standard scaling should be used only on targets of segmentation or encoder type dataset')
+                    return
+                self.y_,self.y_scalers = self.standard_scaling(self.y_)
+            if targets.lower()=="minmax":
+                if (self.type=="classification"):
+                    print('Error: IZ preprocess : MinMax scaling should be used only on targets of segmentation or encoder type dataset')
+                    return
+                self.y_,self.y_scalers = self.minmax_scaling(self.y_)
+
+            self.y_scalers_type = targets
+
+    def standard_scaling(self,data):
+
+        scalers=[]
+        for i in range(data.shape[3]):
+            scaler = StandardScaler()
+            shape_before = data[:,:,:,i].shape
+            a = data[:,:,:,i].reshape(-1,1)
+            scalers.append(scaler.fit(a))
+            b = scalers[i].transform(a)
+            data[:,:,:,i] = b.reshape(shape_before)
+        return data,scalers
+
+    def minmax_scaling(self,data):
+        scalers=[]
+        for i in range(data.shape[3]):
+            scaler = MinMaxScaler()
+            shape_before = data[:,:,:,i].shape
+            a = data[:,:,:,i].reshape(-1,1)
+            scalers.append(scaler.fit(a))
+            b = scalers[i].transform(a)
+            data[:,:,:,i] = b.reshape(shape_before)
+        return data,scalers
+
+
+    def categorical_transform(self,data):
+
+        return to_categorical(data),None
+
+
     def save(self,filename):
         filehandler = open(filename,"wb")
         pickle.dump(self,filehandler)
@@ -414,23 +537,19 @@ class iz_image_dataset:
         print("Done with download, job took {} seconds".format(t1-t0))
 
 
-    def split(self,test=0.2,random_state=42):
-        self.X,self.X_test,self.y,self.y_test = train_test_split(self.X,self.y,test_size=test,random_state=random_state)
-
-
     def input_shape(self):
         return self.X.shape[1:]
-    #
-    # def output_neurons(self):
-    #     #return self.y.shape
-    #     if self.type == "classification":
-    #         if hasattr(self,"y_scalers_type"):
-    #             if self.y_scalers_type == "categorical":
-    #                 return self.y_.shape[1]
-    #             else:
-    #                 return 1
-    #     if self.type == "segmentation":
-    #         return self.input_shape()
-    #
-    #     if self.type == "encoder":
-    #         return self.input_shape()
+
+    def output_neurons(self):
+        #return self.y.shape
+        if self.type == "classification":
+            if hasattr(self,"y_scalers_type"):
+                if self.y_scalers_type == "categorical":
+                    return self.y_.shape[1]
+                else:
+                    return 1
+        if self.type == "segmentation":
+            return self.input_shape()
+
+        if self.type == "encoder":
+            return self.input_shape()
