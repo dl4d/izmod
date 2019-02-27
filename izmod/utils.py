@@ -1,4 +1,3 @@
-
 import pickle
 
 def iz_load(filename):

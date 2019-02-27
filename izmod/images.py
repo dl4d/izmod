@@ -535,3 +535,22 @@ class iz_image_dataset:
                 print("Failed to download url number {}".format(url[0]))
         t1=time.time()
         print("Done with download, job took {} seconds".format(t1-t0))
+
+
+    def input_shape(self):
+        return self.X.shape[1:]
+
+    def output_neurons(self):
+        #return self.y.shape
+        if self.type == "classification":
+            if hasattr(self,"y_scalers_type"):
+                if self.y_scalers_type == "categorical":
+                    print('ici')
+                    return self.y_.shape[1]
+                else:
+                    return 1
+        if self.type == "segmentation":
+            return self.input_shape()
+
+        if self.type == "encoder":
+            return self.input_shape()

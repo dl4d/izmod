@@ -1,7 +1,0 @@
-README.md
-izmod/__init__.py
-izmod.egg-info/PKG-INFO
-izmod.egg-info/SOURCES.txt
-izmod.egg-info/dependency_links.txt
-izmod.egg-info/not-zip-safe
-izmod.egg-info/top_level.txt
