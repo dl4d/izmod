@@ -545,7 +545,6 @@ class iz_image_dataset:
         if self.type == "classification":
             if hasattr(self,"y_scalers_type"):
                 if self.y_scalers_type == "categorical":
-                    print('ici')
                     return self.y_.shape[1]
                 else:
                     return 1
